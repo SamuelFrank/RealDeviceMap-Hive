@@ -21,15 +21,34 @@ def editFile(file_path, target, new_value):
 	with open(file_path, 'w') as file:
 		file.write(filedata)
 
+
 def getDirName(uuid):
-	return absPath + "{}-RDM".format(uuid[:8])
+	return relPath + "{}-RDM".format(uuid[:8])
+
 
 def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
+
+def make():
+	# Clone the base repo
+	print('Cloning repo...')
+	dir = relPath + "RealDeviceMap-UIControl"
+	os.system("git clone " + repoUrl + " ./" + dir)
+	os.chdir(dir)
+	print('Running pod install...')
+	os.system('pod install')
+	os.chdir('..')
+
+
 def buildAll(devices):
+	numDevices = len(devices)
+	numDone = 1
+
 	for device in devices:
+		print('Building instance {} out of {}'.format(numDone, numDevices))
+
 		dir = getDirName(device)
 		build(dir)
 		editFile(dir + '/RealDeviceMap-UIControl/Config.swift', 'DEVICE_UUID', device)
@@ -42,6 +61,19 @@ def buildAll(devices):
 		if isinstance(devices[device],dict) and 'ilocation' in devices[device]:
 			editFile(dir + '/spoof.py','DEVICE_UUID', device)
 			editFile(dir + '/spoof.py','http://DEVICE_IP:8080/loc', 'http://{}:8080/loc'.format(devices[device]['ilocation']))
+
+		os.chdir(dir)
+		print('Running pod install...')
+		os.system('pod install')
+
+		print('Deleting old project files...')
+		shutil.rmtree('RealDeviceMap-UIControl.xcodeproj', onerror=remove_readonly)
+		shutil.rmtree('RealDeviceMap-UIControl.xcworkspace', onerror=remove_readonly)
+		os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
+		print('Copying project files...')
+		shutil.copytree(relPath + 'RealDeviceMap-UIControl/RealDeviceMap-UIControl.xcodeproj', dir + '/RealDeviceMap-UIControl.xcodeproj')
+		shutil.copytree(relPath + 'RealDeviceMap-UIControl/RealDeviceMap-UIControl.xcworkspace', dir + '/RealDeviceMap-UIControl.xcworkspace')
 		
 
 def build(dir):
@@ -52,15 +84,40 @@ def build(dir):
 	print("Cloning repo in {}...".format(dir))
 	os.system("git clone " + repoUrl + " ./" + dir)
 
+
+def launch(script, dir):
+	scriptData = """
+	#!/bin/bash
+	cd {0}
+	cd {1}
+	echo "Launching {2}..."
+	python {2}
+	""".format(os.path.dirname(os.path.realpath(__file__)), dir, script)
+
+	with open('launch.command', 'w') as file:
+		file.write(scriptData)
+
+	os.system('open -a Terminal.app launch.command')
+
 def startAll(devices):
+	numDevices = len(devices)
+	numDone = 1
+	launchScript = "launch.command"
+
 	for device in devices:
 		print('Initializing {}...'.format(device))
+		print('Instance {} out of {}'.format(numDone, numDevices))
 		dir = getDirName(device)
+
+		print('Launching run.py...')
+		launch('run.py', dir)
+
 		if isinstance(devices[device],dict) and 'ilocation' in devices[device]:
 			print('Launching spoof.py...')
-			os.system('start /D "{}" cmd /K python spoof.py'.format(dir))
-		
-		print('Launching run.py...')	
-		os.system('start /D "{}" cmd /K python run.py'.format(dir))
-		print("Waiting for {} seconds to start the next instance".format(startDelay))
-		time.sleep(startDelay)
+			time.sleep(5)
+			launch('spoof.py', dir)
+
+		if numDone < numDevices:
+			print("Waiting for {} seconds to start the next instance".format(startDelay))
+			time.sleep(startDelay)
+	
