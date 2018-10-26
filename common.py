@@ -7,6 +7,7 @@ from subprocess import call
 import fileinput
 from config import *
 
+
 def editFile(file_path, target, new_value):
 	print('Editing file: ' + file_path)
 
@@ -86,7 +87,7 @@ def build(dir):
 	os.system("git clone " + repoUrl + " ./" + dir)
 
 
-def launch(script, dir):
+def launch(bashScript, script, dir):
 	scriptData = """
 	#!/bin/bash
 	cd {0}
@@ -95,28 +96,31 @@ def launch(script, dir):
 	python {2}
 	""".format(os.path.dirname(os.path.realpath(__file__)), dir, script)
 
-	with open('launch.command', 'w') as file:
+	with open(bashScript, 'w') as file:
 		file.write(scriptData)
 
-	os.system('open -a Terminal.app launch.command')
+	os.system('chmod +x ' + bashScript)
+
+	os.system('open -a Terminal.app ' + bashScript)
 
 def startAll(devices):
 	numDevices = len(devices)
 	numDone = 1
-	launchScript = "launch.command"
 
 	for device in devices:
 		print('Initializing {}...'.format(device))
 		print('Instance {} out of {}'.format(numDone, numDevices))
 		dir = getDirName(device)
 
+		launchScript = device[:8] + ".launch.command"
+
 		print('Launching run.py...')
-		launch('run.py', dir)
+		launch(launchScript, 'run.py', dir)
 
 		if isinstance(devices[device],dict) and 'ilocation' in devices[device]:
 			print('Launching spoof.py...')
 			time.sleep(5)
-			launch('spoof.py', dir)
+			launch(launchScript, 'spoof.py', dir)
 
 		if numDone < numDevices:
 			print("Waiting for {} seconds to start the next instance".format(startDelay))
