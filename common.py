@@ -74,6 +74,7 @@ def buildAll(devices):
 		print('Copying project files...')
 		shutil.copytree(relPath + 'RealDeviceMap-UIControl/RealDeviceMap-UIControl.xcodeproj', dir + '/RealDeviceMap-UIControl.xcodeproj')
 		shutil.copytree(relPath + 'RealDeviceMap-UIControl/RealDeviceMap-UIControl.xcworkspace', dir + '/RealDeviceMap-UIControl.xcworkspace')
+		numDone += 1
 		
 
 def build(dir):
@@ -120,4 +121,5 @@ def startAll(devices):
 		if numDone < numDevices:
 			print("Waiting for {} seconds to start the next instance".format(startDelay))
 			time.sleep(startDelay)
-	
+		
+		numDone += 1
